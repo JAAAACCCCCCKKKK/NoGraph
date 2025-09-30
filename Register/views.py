@@ -32,6 +32,8 @@ async def Register(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid or expired verification code.'}, status=400)
 
     user, created = await User.objects.aget_or_create(email=eml, defaults={'username': usr})
+    if user.username != usr:
+        return JsonResponse({'status': 'error', 'message': 'Email already registered with a different username.'}, status=400)
     user.active = True
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
@@ -86,10 +88,34 @@ async def Logout(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
+        if not user.active:
+            return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.active = False
         user.updated_at = timezone.now()
         await sync_to_async(user.save)()
         return JsonResponse({'status': 'success', 'message': 'User logged out successfully.'}, status=200)
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
+
+@csrf_exempt
+async def ChangeName(request):
+    if request.method != "POST":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    data = json.loads(request.body.decode('utf-8'))
+    eml = data.get('email')
+    new_name = data.get('new_username')
+    if not eml or not new_name:
+        return JsonResponse({'status': 'error', 'message': 'Email and new username are required.'}, status=400)
+    try:
+        user = await User.objects.aget(email=eml)
+        if not user.active:
+            return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
+        user.username = new_name
+        user.updated_at = timezone.now()
+        await sync_to_async(user.save)()
+        return JsonResponse({'status': 'success', 'message': 'Username changed successfully.'}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
     except Exception as e:

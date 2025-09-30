@@ -7,4 +7,5 @@ urlpatterns = [
     path('verify/', views.Register, name='register'),
     path('sendcode/', views.SendCode, name='sendcode'),
     path('logout/', views.Logout, name='logout'),
+    path('changename/', views.ChangeName, name='changename'),
 ]
