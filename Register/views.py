@@ -29,18 +29,22 @@ async def Register(request):
     code_expire  = await sync_to_async(request.session.get)(f"code_expire_{eml}")
 
     if not session_code or session_code != code or int(timezone.now().timestamp()) > code_expire:
+        request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'error', 'message': 'Invalid or expired verification code.'}, status=400)
 
     user, created = await User.objects.aget_or_create(email=eml, defaults={'username': usr})
     if user.username != usr:
+        request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'error', 'message': 'Email already registered with a different username.'}, status=400)
     user.active = True
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
 
     if created:
+        request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'success', 'message': 'User registered successfully.'}, status=200)
     else:
+        request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'success', 'message': 'User logged in successfully.'}, status=200)
 
 @csrf_exempt
@@ -59,7 +63,7 @@ async def SendCode(request):
 
     # 生成 6 位验证码
     verification_code = ''.join(random.choices(string.digits, k=6))
-    expire_ts = int(timezone.now().timestamp() + 300)  # 5 分钟过期
+    expire_ts = int(timezone.now().timestamp() + 90)  # 1.5 分钟过期
 
     # 用 sync_to_async 保存到 session
     await sync_to_async(request.session.__setitem__)(f"email_code_{eml}", verification_code)
