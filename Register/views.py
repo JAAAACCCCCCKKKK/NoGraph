@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import User
+from NoGraph.utils import create_jwt, check_jwt
 
 
 # Create your views here.
@@ -17,6 +18,7 @@ from .models import User
 @csrf_exempt
 async def Register(request):
     if request.method != "POST":
+        # print(request.GET["abc"])
         return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
     data = json.loads(request.body.decode('utf-8'))
     usr = data.get('username')
@@ -39,13 +41,14 @@ async def Register(request):
     user.active = True
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
+    tok = create_jwt(eml)
 
     if created:
         request.session['code_expire'] = -1  # 使验证码失效
-        return JsonResponse({'status': 'success', 'message': f'User registered as {usr} successfully.'}, status=200)
+        return JsonResponse({'status': 'success', 'message': f'User registered as {usr} successfully.', 'token':tok}, status=200)
     else:
         request.session['code_expire'] = -1  # 使验证码失效
-        return JsonResponse({'status': 'success', 'message': f'User logged in as {usr} successfully.'}, status=200)
+        return JsonResponse({'status': 'success', 'message': f'User logged in as {usr} successfully.', 'token':tok}, status=200)
 
 @csrf_exempt
 async def SendCode(request):
@@ -92,7 +95,7 @@ async def Logout(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active:
+        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1]) != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.active = False
         user.updated_at = timezone.now()
@@ -114,7 +117,7 @@ async def ChangeName(request):
         return JsonResponse({'status': 'error', 'message': 'Email and new username are required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active:
+        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1]) != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.username = new_name
         user.updated_at = timezone.now()
@@ -124,3 +127,21 @@ async def ChangeName(request):
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
+
+@csrf_exempt
+async def GetPtf(request):
+    if request.method != "GET":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    eml = request.GET['email']
+    if not eml:
+        return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
+    try:
+        user = await User.objects.aget(email=eml)
+        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1]) != eml:
+            return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
+        return JsonResponse({'status': 'success', 'username': user.username, 'email': user.email, 'created_at':user.created_at}, status=200)
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
+
