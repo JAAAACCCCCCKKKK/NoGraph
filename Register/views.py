@@ -42,10 +42,10 @@ async def Register(request):
 
     if created:
         request.session['code_expire'] = -1  # 使验证码失效
-        return JsonResponse({'status': 'success', 'message': 'User registered successfully.'}, status=200)
+        return JsonResponse({'status': 'success', 'message': f'User registered as {usr} successfully.'}, status=200)
     else:
         request.session['code_expire'] = -1  # 使验证码失效
-        return JsonResponse({'status': 'success', 'message': 'User logged in successfully.'}, status=200)
+        return JsonResponse({'status': 'success', 'message': f'User logged in as {usr} successfully.'}, status=200)
 
 @csrf_exempt
 async def SendCode(request):

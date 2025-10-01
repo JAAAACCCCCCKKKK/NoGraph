@@ -50,3 +50,5 @@ htmlcov/
 .pytest_cache/
 .tox/
 .mypy_cache/
+
+NoGraph/settings.py
