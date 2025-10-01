@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import jwt
+from django.http import JsonResponse
 from django.utils import timezone
 
 from NoGraph import settings
@@ -24,3 +25,5 @@ def check_jwt(tok):
     except jwt.InvalidTokenError:
         return "invt"
 
+def healthcheck(request):
+    return JsonResponse({'status': 'ok'},status=200)
