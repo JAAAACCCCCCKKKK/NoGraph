@@ -52,3 +52,4 @@ htmlcov/
 .mypy_cache/
 
 NoGraph/settings.py
+Register/migrations/
