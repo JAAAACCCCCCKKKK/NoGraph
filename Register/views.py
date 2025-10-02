@@ -11,9 +11,10 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import User
 from NoGraph.utils import create_jwt, check_jwt
+from NoGraph import settings
 
 
-# Create your views here.
+# General
 
 @csrf_exempt
 async def Register(request):
@@ -41,7 +42,7 @@ async def Register(request):
     user.active = True
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
-    tok = create_jwt(eml)
+    tok = create_jwt(eml, user.is_admin)
 
     if created:
         request.session['code_expire'] = -1  # 使验证码失效
@@ -95,7 +96,7 @@ async def Logout(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1]) != eml:
+        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.active = False
         user.updated_at = timezone.now()
@@ -117,7 +118,7 @@ async def ChangeName(request):
         return JsonResponse({'status': 'error', 'message': 'Email and new username are required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1]) != eml:
+        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.username = new_name
         user.updated_at = timezone.now()
@@ -137,7 +138,7 @@ async def GetPtf(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1]) != eml:
+        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         return JsonResponse({'status': 'success', 'username': user.username, 'email': user.email, 'created_at':user.created_at}, status=200)
     except User.DoesNotExist:
@@ -145,3 +146,32 @@ async def GetPtf(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
 
+# Operators only
+
+# Super operators only
+@csrf_exempt
+async def OpPrivOnOff(request):
+    if request.method != "POST":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    data = json.loads(request.body.decode('utf-8'))
+    eml = data.get('email')
+    target = data.get('target_email')
+    if not target:
+        return JsonResponse({'status': 'error', 'message': 'Target email is required.'}, status=400)
+    if not eml:
+        return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
+    try:
+        user = await User.objects.aget(email=eml)
+        target_user = await User.objects.aget(email=target)
+        if (not user.active
+                or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml
+                or user not in settings.SUPER_OPERATORS):
+            return JsonResponse({'status': 'error', 'message': 'please log in as super operator'}, status=400)
+        target_user.is_admin = not target_user.is_admin
+        target_user.updated_at = timezone.now()
+        await sync_to_async(target_user.save)()
+        return JsonResponse({'status': 'success', 'message': f'User {target_user.username} operator privilege is now {target_user.is_admin}.'}, status=200)
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)

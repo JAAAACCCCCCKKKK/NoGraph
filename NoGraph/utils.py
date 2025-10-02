@@ -7,9 +7,10 @@ from django.utils import timezone
 from NoGraph import settings
 
 
-def create_jwt(pk):
+def create_jwt(pk,isop):
     payload = {
         'user_id': pk,
+        'isop': isop,
         'exp':  timezone.now() + timedelta(seconds=settings.JWT_EXP),
         'iat':  timezone.now()
     }
@@ -19,11 +20,11 @@ def create_jwt(pk):
 def check_jwt(tok):
     try:
         pl = jwt.decode(tok, settings.JWT_KEY, algorithms=[settings.JWT_ALG])
-        return pl['user_id']
+        return {'user_id': pl['user_id'], 'isop': pl['isop']}
     except jwt.ExpiredSignatureError:
-        return "expd"
+        return None
     except jwt.InvalidTokenError:
-        return "invt"
+        return None
 
 def healthcheck(request):
     return JsonResponse({'status': 'ok'},status=200)
