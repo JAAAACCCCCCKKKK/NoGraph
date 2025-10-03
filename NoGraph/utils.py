@@ -28,3 +28,11 @@ def check_jwt(tok):
 
 def healthcheck(request):
     return JsonResponse({'status': 'ok'},status=200)
+
+def extract_token(request):
+    """Return the JWT token from the custom AUTH header if present."""
+    auth_header = request.headers.get('AUTH', '')
+    if not auth_header:
+        return ''
+    parts = auth_header.split()
+    return parts[-1] if parts else ''
