@@ -14,6 +14,15 @@ from NoGraph.utils import create_jwt, check_jwt
 from NoGraph import settings
 
 
+def _extract_token(request):
+    """Return the JWT token from the custom AUTH header if present."""
+    auth_header = request.headers.get('AUTH', '')
+    if not auth_header:
+        return ''
+    parts = auth_header.split()
+    return parts[-1] if parts else ''
+
+
 # General
 
 @csrf_exempt
@@ -96,7 +105,8 @@ async def Logout(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml:
+        token_data = check_jwt(_extract_token(request))
+        if not user.active or not token_data or token_data['user_id'] != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.active = False
         user.updated_at = timezone.now()
@@ -118,7 +128,8 @@ async def ChangeName(request):
         return JsonResponse({'status': 'error', 'message': 'Email and new username are required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml:
+        token_data = check_jwt(_extract_token(request))
+        if not user.active or not token_data or token_data['user_id'] != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.username = new_name
         user.updated_at = timezone.now()
@@ -138,7 +149,8 @@ async def GetPtf(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        if not user.active or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml:
+        token_data = check_jwt(_extract_token(request))
+        if not user.active or not token_data or token_data['user_id'] != eml:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         return JsonResponse({'status': 'success', 'username': user.username, 'email': user.email, 'created_at':user.created_at}, status=200)
     except User.DoesNotExist:
@@ -163,9 +175,11 @@ async def OpPrivOnOff(request):
     try:
         user = await User.objects.aget(email=eml)
         target_user = await User.objects.aget(email=target)
+        token_data = check_jwt(_extract_token(request))
         if (not user.active
-                or check_jwt(request.META.get('AUTH', '').split(' ')[-1])['user_id'] != eml
-                or user not in settings.SUPER_OPERATORS):
+                or not token_data
+                or token_data['user_id'] != eml
+                or user.email not in settings.SUPER_OPERATORS):
             return JsonResponse({'status': 'error', 'message': 'please log in as super operator'}, status=400)
         target_user.is_admin = not target_user.is_admin
         target_user.updated_at = timezone.now()
