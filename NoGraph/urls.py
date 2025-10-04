@@ -17,11 +17,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from NoGraph.utils import healthcheck
-from Register import urls
+from Register import urls as reurls
+from Channels import urls as churls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('auth/', include(urls)),
-    path('', healthcheck) # Universal healthcheck
+    path('auth/', include(reurls)),
+    path('', healthcheck), # Universal healthcheck
+    path('channels/', include(churls)),
 ]
 
