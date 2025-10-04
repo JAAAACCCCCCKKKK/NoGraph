@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+from Channels.models import Channel
 from .models import User
 from NoGraph.utils import create_jwt, check_jwt, extract_token
 from NoGraph import settings
@@ -150,6 +151,34 @@ async def GetPtf(request):
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
 
 # Operators only
+
+@csrf_exempt
+async def BanUser(request):
+    if request.method != "POST":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    data = json.loads(request.body.decode('utf-8'))
+    eml = data.get('email')
+    if not eml:
+        return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
+    target = data.get('target')
+    if not target:
+        return JsonResponse({'status': 'error', 'message': 'Target is required.'}, status=400)
+    try:
+        user = await User.objects.aget(email=eml)
+        token_data = check_jwt(extract_token(request))
+        if not user.active or not user.is_admin or not token_data or token_data['user_id'] != eml:
+            return JsonResponse({'status': 'error', 'message': 'please log in as operator'}, status=400)
+        target_usr = await User.objects.aget(email=target)
+        involved_cnl = Channel.objects.filter(members=target_usr.email).values_list()
+        for channel in involved_cnl:
+            await sync_to_async(channel.members.remove)(target_usr)
+        await sync_to_async(target_usr.delete)()
+        await sync_to_async(target_usr.save)()
+        return JsonResponse({'status': 'success', 'message': 'Target deleted successfully.'}, status=200)
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
 
 # Super operators only
 @csrf_exempt
