@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     # 'django_crontab',
     'Register',
     'Channels',
+    'Messenger',
 ]
 
 MIDDLEWARE = [

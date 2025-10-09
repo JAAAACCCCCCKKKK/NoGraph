@@ -19,11 +19,13 @@ from django.urls import path, include
 from NoGraph.utils import healthcheck
 from Register import urls as reurls
 from Channels import urls as churls
+from Messenger import urls as meurls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include(reurls)),
     path('', healthcheck), # Universal healthcheck
     path('channels/', include(churls)),
+    path('Messenger/', include(meurls))
 ]
 
