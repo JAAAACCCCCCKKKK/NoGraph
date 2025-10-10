@@ -26,6 +26,6 @@ urlpatterns = [
     path('auth/', include(reurls)),
     path('', healthcheck), # Universal healthcheck
     path('channels/', include(churls)),
-    path('Messenger/', include(meurls))
+    path('messenger/', include(meurls))
 ]
 
