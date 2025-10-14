@@ -2,14 +2,14 @@ import datetime
 import json
 
 from asgiref.sync import sync_to_async
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from Channels.models import Channel
-from Messenger.models import post
+from Messenger.models import Post
 from NoGraph.utils import check_jwt, extract_token
-from Register.models import User
 
 
 # General
@@ -86,7 +86,7 @@ async def read_channel(request):
             return JsonResponse({'status': 'error', 'message': 'Channel not found.'}, status=404)
         if usr not in channel.members:
             return JsonResponse({'status': 'error', 'message': 'Forbidden'}, status=403)
-        posts = await post.objects.filter(channel = channel, in_channel_id__range=[start_line, end_line]).order_by('in_channel_id')
+        posts = await Post.objects.filter(channel = channel, in_channel_id__range=[start_line, end_line]).order_by('in_channel_id')
         posts_resp = []
         max_post_id_in_this_channel = max([p.in_channel_id for p in posts])
         for p in posts:

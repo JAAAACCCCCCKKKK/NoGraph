@@ -4,13 +4,13 @@ import string
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from Channels.models import Channel
-from .models import User
 from NoGraph.utils import create_jwt, check_jwt, extract_token
 from NoGraph import settings
 

@@ -3,6 +3,6 @@ from . import views
 
 app_name = 'messenger'
 
-url_patterns = [
+urlpatterns = [
    path('send/', views.send_message, name='send_message')
 ]

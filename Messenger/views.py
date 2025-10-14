@@ -1,13 +1,13 @@
 import json
 
 from asgiref.sync import sync_to_async
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from Channels.models import Channel
-from Messenger.models import post
+from Messenger.models import Post
 from NoGraph.utils import check_jwt, extract_token
-from Register.models import User
 
 
 # Create your views here.
@@ -33,8 +33,8 @@ async  def send_message(request):
         typ = con.get('type')
         if not typ or not typ in ['plain', 'vote']:
             return JsonResponse({'status': 'error', 'message': 'invalid type'}, status=400)
-        max_in_channel_id = max([p.in_channel_id for p in await post.objects.filter(channel = channel).order_by('in_channel_id')])
-        message= post.objects.create(channel = channel, sender = user, content = con, in_channel_id = max_in_channel_id + 1)
+        max_in_channel_id = max([p.in_channel_id for p in await Post.objects.filter(channel = channel).order_by('in_channel_id')])
+        message= Post.objects.create(channel = channel, sender = user, content = con, in_channel_id = max_in_channel_id + 1)
         con['post']= message.id
         await sync_to_async(message.save)()
         await sync_to_async(con.save)()
