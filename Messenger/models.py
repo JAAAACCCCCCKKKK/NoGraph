@@ -4,6 +4,8 @@ from Register.models import User
 
 # Create your models here.
 class post(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    in_channel_id = models.BigAutoField(unique=True)
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)

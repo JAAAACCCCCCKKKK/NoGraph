@@ -33,14 +33,19 @@ async  def send_message(request):
         typ = con.get('type')
         if not typ or not typ in ['plain', 'vote']:
             return JsonResponse({'status': 'error', 'message': 'invalid type'}, status=400)
-        message= post.objects.create(channel = channel, sender = user, content = con)
+        max_in_channel_id = max([p.in_channel_id for p in await post.objects.filter(channel = channel).order_by('in_channel_id')])
+        message= post.objects.create(channel = channel, sender = user, content = con, in_channel_id = max_in_channel_id + 1)
+        con['post']= message.id
         await sync_to_async(message.save)()
+        await sync_to_async(con.save)()
         return JsonResponse({'status': 'success', 'message': 'message sent successfully'}, status=200)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)
 
 @csrf_exempt
 async def compose_message(request):
-    # TODO
+    # 生成对应种类的消息并以Json格式返回调用方，调用方可以选择编辑（重新生成）
     pass
+
+
 
