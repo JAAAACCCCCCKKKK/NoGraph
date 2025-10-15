@@ -5,7 +5,7 @@ import traceback
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.contrib.auth.models import User
+from Register.models import CustomUser as User
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.utils import timezone
@@ -41,10 +41,7 @@ async def Register(request):
     if user.username != usr:
         request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'error', 'message': 'Email already registered with a different username.'}, status=400)
-    profile = await sync_to_async(lambda: user.profile)()
-    profile.is_active = True
-    await sync_to_async(profile.save)()
-
+    user.is_active = True
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
     tok = create_jwt(eml)
@@ -101,15 +98,13 @@ async def Logout(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await sync_to_async( User.objects.get)(email=eml)
-        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
         print(timezone.now().timestamp())
-        if not token_data or not token_data['user_id'] == eml or not profile.is_active:
+        if not token_data or not token_data['user_id'] == eml or not user.is_active:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.updated_at = timezone.now()
+        user.is_active = False
         await sync_to_async(user.save)()
-        profile.is_active = False
-        await sync_to_async(profile.save)()
         return JsonResponse({'status': 'success', 'message': 'User logged out successfully.'}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
@@ -129,9 +124,8 @@ async def ChangeName(request):
         return JsonResponse({'status': 'error', 'message': 'Email and new username are required.'}, status=400)
     try:
         user = await sync_to_async(User.objects.get)(email=eml)
-        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not token_data or not token_data['user_id'] == eml or not profile.is_active:
+        if not token_data or not token_data['user_id'] == eml or not user.is_active:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.username = new_name
         await sync_to_async(user.save)()
@@ -152,9 +146,8 @@ async def GetPtf(request):
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
-        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not token_data or token_data['user_id'] != eml or not profile.is_active:
+        if not token_data or token_data['user_id'] != eml or not user.is_active:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         return JsonResponse({'status': 'success', 'username': user.username, 'email': user.email}, status=200)
     except User.DoesNotExist:
@@ -179,9 +172,8 @@ async def BanUser(request):
         return JsonResponse({'status': 'error', 'message': 'Target is required.'}, status=400)
     try:
         user = await sync_to_async(User.objects.get)(email=eml)
-        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not token_data or not token_data['user_id'] == eml or not profile.is_active or not user.is_staff:
+        if not token_data or not token_data['user_id'] == eml or not user.is_active or not user.is_staff:
             return JsonResponse({'status': 'error', 'message': 'please log in as operator'}, status=400)
         target_usr = await sync_to_async(User.objects.get)(email=target)
         involved_cnl = await sync_to_async(lambda: list(Channel.objects.filter(members=target_usr).values_list('name', flat=True)))()

@@ -150,3 +150,5 @@ DEFAULT_FROM_EMAIL = 'noreply@nograph.com'
 # STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # APPEND_SLASH = False
+
+AUTH_USER_MODEL = "Register.CustomUser"
