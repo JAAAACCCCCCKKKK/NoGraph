@@ -1,5 +1,5 @@
-from django.contrib.auth.models import User
-from django.db import models
+from NoGraph import settings
+
 from Channels.models import *
 
 
@@ -7,7 +7,7 @@ class Post(models.Model):
     id = models.AutoField(primary_key=True)
     in_channel_id = models.IntegerField(unique=True)
     channel = models.ForeignKey(Channel,on_delete=models.CASCADE,to_field='name')
-    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     tYpe = models.CharField(max_length=10)
 
