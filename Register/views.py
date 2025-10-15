@@ -82,7 +82,7 @@ async def SendCode(request):
         # 异步执行发送邮件
         await sync_to_async(send_mail)(
             subject='Your Verification Code',
-            message=f'{verification_code}, please do not share this code with anyone.',
+            message=f'Your verification code is: {verification_code}, please do not share this code with anyone.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[eml],
             fail_silently=False,
