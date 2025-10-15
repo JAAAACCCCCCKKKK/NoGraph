@@ -4,8 +4,7 @@ from django.db import models
 
 # Create your models here.
 class Channel(models.Model):
-    channel_id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100, primary_key=True)
     members = models.ManyToManyField(User)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -148,3 +148,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For developm
 DEFAULT_FROM_EMAIL = 'noreply@nograph.com'
 
 # STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# APPEND_SLASH = False

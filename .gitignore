@@ -51,4 +51,4 @@ htmlcov/
 .tox/
 .mypy_cache/
 
-Register/migrations/
+./migrations/

@@ -1,6 +1,7 @@
 import json
 import random
 import string
+import traceback
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
@@ -40,10 +41,13 @@ async def Register(request):
     if user.username != usr:
         request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'error', 'message': 'Email already registered with a different username.'}, status=400)
-    user.active = True
+    profile = await sync_to_async(lambda: user.profile)()
+    profile.is_active = True
+    await sync_to_async(profile.save)()
+
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
-    tok = create_jwt(eml, user.is_admin)
+    tok = create_jwt(eml)
 
     if created:
         request.session['code_expire'] = -1  # 使验证码失效
@@ -78,7 +82,7 @@ async def SendCode(request):
         # 异步执行发送邮件
         await sync_to_async(send_mail)(
             subject='Your Verification Code',
-            message=f'Your verification code is: {verification_code}',
+            message=f'{verification_code}, please do not share this code with anyone.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[eml],
             fail_silently=False,
@@ -96,17 +100,22 @@ async def Logout(request):
     if not eml:
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
-        user = await User.objects.aget(email=eml)
+        user = await sync_to_async( User.objects.get)(email=eml)
+        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not user.active or not token_data or token_data['user_id'] != eml:
+        print(timezone.now().timestamp())
+        if not token_data or not token_data['user_id'] == eml or not profile.is_active:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
-        user.active = False
         user.updated_at = timezone.now()
         await sync_to_async(user.save)()
+        profile.is_active = False
+        await sync_to_async(profile.save)()
         return JsonResponse({'status': 'success', 'message': 'User logged out successfully.'}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
     except Exception as e:
+        print(e)
+        traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
 
 @csrf_exempt
@@ -119,39 +128,44 @@ async def ChangeName(request):
     if not eml or not new_name:
         return JsonResponse({'status': 'error', 'message': 'Email and new username are required.'}, status=400)
     try:
-        user = await User.objects.aget(email=eml)
+        user = await sync_to_async(User.objects.get)(email=eml)
+        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not user.active or not token_data or token_data['user_id'] != eml:
+        if not token_data or not token_data['user_id'] == eml or not profile.is_active:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
         user.username = new_name
-        user.updated_at = timezone.now()
         await sync_to_async(user.save)()
         return JsonResponse({'status': 'success', 'message': 'Username changed successfully.'}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
     except Exception as e:
+        print(e)
+        traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
 
 @csrf_exempt
 async def GetPtf(request):
     if request.method != "GET":
-        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+        return JsonResponse({'status': 'error', 'message': 'Only GET allowed.'}, status=405)
     eml = request.GET['email']
     if not eml:
         return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
     try:
         user = await User.objects.aget(email=eml)
+        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not user.active or not token_data or token_data['user_id'] != eml:
+        if not token_data or token_data['user_id'] != eml or not profile.is_active:
             return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
-        return JsonResponse({'status': 'success', 'username': user.username, 'email': user.email, 'created_at':user.created_at}, status=200)
+        return JsonResponse({'status': 'success', 'username': user.username, 'email': user.email}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
     except Exception as e:
+        print(e)
+        traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
 
 # Operators only
-
+# TODO : 管理员鉴权
 @csrf_exempt
 async def BanUser(request):
     if request.method != "POST":
@@ -164,12 +178,13 @@ async def BanUser(request):
     if not target:
         return JsonResponse({'status': 'error', 'message': 'Target is required.'}, status=400)
     try:
-        user = await User.objects.aget(email=eml)
+        user = await sync_to_async(User.objects.get)(email=eml)
+        profile = await sync_to_async(lambda: user.profile)()
         token_data = check_jwt(extract_token(request))
-        if not user.active or not user.is_admin or not token_data or token_data['user_id'] != eml:
+        if not token_data or not token_data['user_id'] == eml or not profile.is_active or not user.is_staff:
             return JsonResponse({'status': 'error', 'message': 'please log in as operator'}, status=400)
-        target_usr = await User.objects.aget(email=target)
-        involved_cnl = Channel.objects.filter(members=target_usr.email).values_list()
+        target_usr = await sync_to_async(User.objects.get)(email=target)
+        involved_cnl = await sync_to_async(lambda: list(Channel.objects.filter(members=target_usr).values_list('name', flat=True)))()
         for channel in involved_cnl:
             await sync_to_async(channel.members.remove)(target_usr)
         await sync_to_async(target_usr.delete)()
@@ -178,34 +193,6 @@ async def BanUser(request):
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)
-
-# Super operators only
-@csrf_exempt
-async def OpPrivOnOff(request):
-    if request.method != "POST":
-        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
-    data = json.loads(request.body.decode('utf-8'))
-    eml = data.get('email')
-    target = data.get('target_email')
-    if not target:
-        return JsonResponse({'status': 'error', 'message': 'Target email is required.'}, status=400)
-    if not eml:
-        return JsonResponse({'status': 'error', 'message': 'Email is required.'}, status=400)
-    try:
-        user = await User.objects.aget(email=eml)
-        target_user = await User.objects.aget(email=target)
-        token_data = check_jwt(extract_token(request))
-        if (not user.active
-                or not token_data
-                or token_data['user_id'] != eml
-                or user.email not in settings.SUPER_OPERATORS):
-            return JsonResponse({'status': 'error', 'message': 'please log in as super operator'}, status=400)
-        target_user.is_admin = not target_user.is_admin
-        target_user.updated_at = timezone.now()
-        await sync_to_async(target_user.save)()
-        return JsonResponse({'status': 'success', 'message': f'User {target_user.username} operator privilege is now {target_user.is_admin}.'}, status=200)
-    except User.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'User does not exist.'}, status=404)
-    except Exception as e:
+        print(e)
+        traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=500)

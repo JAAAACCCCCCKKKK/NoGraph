@@ -16,6 +16,6 @@ class Plain(models.Model):
     content = models.TextField()
 
 class vote(models.Model):
-    Post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
     supporting_votes = models.IntegerField(default=0)
     opposing_votes = models.IntegerField(default=0)
