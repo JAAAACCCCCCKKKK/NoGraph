@@ -21,6 +21,10 @@ python manage.py runserver 0.0.0.0:8000 > "${LOG_FILE}" 2>&1 &
 SERVER_PID=$!
 trap cleanup EXIT
 
+# Print live logs in background (non-blocking)
+tail -n 30 -f "${LOG_FILE}" &
+TAIL_PID=$!
+
 # Wait for server to be ready
 SERVER_READY=false
 for _ in {1..30}; do
