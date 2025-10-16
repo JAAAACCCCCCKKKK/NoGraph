@@ -1,0 +1,6 @@
+Django==5.2.6
+python-decouple~=3.8
+PyJWT~=2.10.1
+
+asgiref~=3.9.2
+pydantic~=2.11.9
