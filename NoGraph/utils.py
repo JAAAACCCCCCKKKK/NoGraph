@@ -1,4 +1,5 @@
 from datetime import timedelta
+from traceback import print_exception
 
 import jwt
 from django.http import JsonResponse
@@ -20,9 +21,11 @@ def check_jwt(tok):
     try:
         pl = jwt.decode(tok, settings.JWT_KEY, algorithms=[settings.JWT_ALG])
         return {'user_id': pl['user_id']}
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
+        print_exception(e)
         return None
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e1:
+        print_exception(e1)
         return None
 
 def healthcheck(request):
@@ -30,7 +33,8 @@ def healthcheck(request):
 
 def extract_token(request):
     """Return the JWT token from the custom AUTH header if present."""
-    auth_header = request.headers.get('AUTH', '')
+    auth_header = request.headers.get('Auth', '')
+     # Example header
     if not auth_header:
         return ''
     parts = auth_header.split()
