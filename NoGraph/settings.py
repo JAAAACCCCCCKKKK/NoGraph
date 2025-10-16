@@ -31,9 +31,7 @@ JWT_EXP = 3600
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
-SUPER_OPERATORS = config('SUPER_OPERATORS').split(',')
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
