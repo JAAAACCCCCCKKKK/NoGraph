@@ -11,6 +11,8 @@ from Register.models import CustomUser as User
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'NoGraph.settings')
 django.setup()
+test_code = None
+token = None
 
 class UserTestCase(TestCase):
     user = None
@@ -44,10 +46,6 @@ class UserTestCase(TestCase):
 
 
 class RegisterTestCase(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.test_code = None
-        cls.test_token =  None
 
     def test_health(self):
         client = Client()
@@ -69,8 +67,10 @@ class RegisterTestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'status': 'error', 'message': 'Email is missing or invalid'} )
 
+    #TODO: pass the session between test_sendcode and test_verify
 
     def test_sendcode(self):
+        global test_code
         client = Client()
         response = client.post('/auth/sendcode/', content_type='application/json', data={
             'email': '12345@gmail.com'
@@ -78,7 +78,7 @@ class RegisterTestCase(TestCase):
         sent_email = mail.outbox[0]
         match = re.search(r'Your verification code is:\s*(\d{6})', sent_email.body)
         self.assertIsNotNone(match, "Verification code not found in email body")
-        self.test_code = match.group(1)
+        test_code = match.group(1)
         self.assertEqual(sent_email.subject, 'Your Verification Code')
         self.assertIn('Your verification code is:', sent_email.body)
         self.assertIn('12345@gmail.com', sent_email.to)
@@ -87,12 +87,14 @@ class RegisterTestCase(TestCase):
 
 
     def test_verify(self):
+        global token, test_code
         client = Client()
         response = client.post('/auth/verify/', content_type='application/json', data={
             'username': 'testuser',
             'email': '12345@gmail.com',
-            'code': self.test_code
+            'code': test_code
         })
+        print(test_code)
         print(response.json())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get('status'), 'success')
