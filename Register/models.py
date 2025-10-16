@@ -6,6 +6,8 @@ class CustomUser(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    password = models.CharField(max_length=128, blank=True)
+    email = models.EmailField(unique=True)
 
     def __str__(self):
         return self.username

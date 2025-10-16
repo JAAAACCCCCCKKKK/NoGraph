@@ -64,8 +64,8 @@ async def SendCode(request):
         return JsonResponse({"status": "error", "message": "Invalid JSON."}, status=400)
 
     eml = data.get("email")
-    if not eml:
-        return JsonResponse({"status": "error", "message": "Email is required."}, status=400)
+    if not eml or not type(eml)==str or not str(eml).__contains__("@"):
+        return JsonResponse({"status": "error", "message": "Email is missing or invalid"}, status=400)
 
     # 生成 6 位验证码
     verification_code = ''.join(random.choices(string.digits, k=6))
