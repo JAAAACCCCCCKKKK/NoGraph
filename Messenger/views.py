@@ -98,6 +98,72 @@ async def make_vote(request):
         print_exception(e)
         return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)
 
+@csrf_exempt
+async def get_messages(request):
+    if not request.method == "POST":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    data = json.loads(request.body.decode('utf-8'))
+    eml = data.get('email')
+    cha = data.get('channel')
+    offset = int(data.get('offset', 0))
+    limit = int(data.get('limit', 50))
+    token_data = check_jwt(extract_token(request))
+    if not eml or not type(eml)==str or not eml.__contains__("@"):
+        return JsonResponse({'status': 'error', 'message': 'invalid email'}, status=400)
+    if not cha or not type(cha)==str:
+        return JsonResponse({'status': 'error', 'message': 'channel is required'}, status=400)
+    if not type( offset)==int or not type(limit)==int or offset < 0 or limit <= 0 or limit > 50:
+        return JsonResponse({'status': 'error', 'message': 'invalid offset or limit, limit should be between 1-50'}, status=400)
+    try:
+        user = await CustomUser.objects.aget(email=eml)
+        if not user or not user.is_active or not token_data or not token_data['user_id']==eml :
+            return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
+        channel = await Channel.objects.aget(name =  cha)
+        if not channel or not (await channel.members.aget(email=eml)):
+            return JsonResponse({'status': 'error', 'message': 'please join or create the channel'}, status=400)
+        posts = await sync_to_async(
+            lambda: list(
+                Post.objects.filter(channel=channel)
+                .select_related('channel', 'sender')
+                .prefetch_related('plain', 'vote')
+                .order_by('in_channel_id')[offset:offset + limit]
+            )
+        )()
+        posts_resp = []
+        for p in posts:
+            post_data = {
+                'channel': channel.name,
+                'sender': p.sender.email,
+                'created_at': p.created_at,
+                'type': p.post_type,
+                'in_channel_id': p.in_channel_id,
+            }
+
+            if p.post_type == 'plain' and hasattr(p, 'plain'):
+                plain = p.plain
+                post_data['content'] = plain.content if plain else ""
+            elif p.post_type == 'vote' and hasattr(p, 'vote'):
+                vote = p.vote
+                support_rate = await sync_to_async(lambda: vote.support_rate)()
+                if vote:
+                    post_data.update({
+                        'description': vote.description,
+                        'supporting_votes': vote.supporting_votes,
+                        'opposing_votes': vote.opposing_votes,
+                        'total_votes': vote.total_votes,
+                        'support_rate': support_rate,
+                    })
+            posts_resp.append(post_data)
+        return JsonResponse({
+            'status': 'success',
+            'count': len(posts_resp),
+            'offset': offset,
+            'limit': limit,
+            'messages': posts_resp
+        }, status=200)
+    except Exception as e:
+        print_exception(e)
+        return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)
 
 
 
