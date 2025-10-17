@@ -10,7 +10,7 @@ class Post(models.Model):
     POST_TYPES = [
         ('text', '文本'),
         ('vote', '投票'),
-        ('image', '图片'),
+        #('image', '图片'),
         ('file', '文件'),
     ]
 
@@ -102,6 +102,10 @@ class Vote(models.Model):
         verbose_name="关联帖子",
         related_name="vote"
     )
+    description = models.TextField(
+        verbose_name="描述",
+        help_text="投票的描述"
+    )
     supporting_votes = models.PositiveIntegerField(
         default=0,
         validators=[MinValueValidator(0)],
@@ -111,6 +115,11 @@ class Vote(models.Model):
         default=0,
         validators=[MinValueValidator(0)],
         verbose_name="反对票数"
+    )
+    voted_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="投票用户",
+        related_name="voted_usrs"
     )
 
     class Meta:
@@ -128,9 +137,14 @@ class Vote(models.Model):
     @property
     def support_rate(self):
         """支持率"""
+        channel = Channel.objects.get(id=self.post.channel.id)
+        channel_members = channel.members.count()
         if self.total_votes == 0:
             return 0
-        return (self.supporting_votes / self.total_votes) * 100
+        elif self.total_votes<=channel_members:
+            return self.supporting_votes / channel_members * 100
+        else:
+            return self.supporting_votes / self.total_votes * 100
 
     def add_supporting_vote(self):
         """添加支持票"""

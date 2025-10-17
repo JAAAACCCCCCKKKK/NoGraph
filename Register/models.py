@@ -19,11 +19,11 @@ class CustomUser(AbstractUser):
         verbose_name="激活状态",
         help_text="用户是否激活"
     )
-    password = models.CharField(
-        max_length=128,
-        blank=True,
-        verbose_name="密码"
-    )
+    # password = models.CharField(
+    #     max_length=128,
+    #     blank=True,
+    #     verbose_name="密码"
+    # )
     email = models.EmailField(
         unique=True,
         validators=[EmailValidator()],
@@ -45,15 +45,15 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.email})"
 
-    def get_full_name(self):
-        """获取完整姓名"""
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        return self.username
-
-    def get_short_name(self):
-        """获取简短姓名"""
-        return self.first_name or self.username
+    # def get_full_name(self):
+    #     """获取完整姓名"""
+    #     if self.first_name and self.last_name:
+    #         return f"{self.first_name} {self.last_name}"
+    #     return self.username
+    #
+    # def get_short_name(self):
+    #     """获取简短姓名"""
+    #     return self.first_name or self.username
 
     @property
     def is_admin(self):

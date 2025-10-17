@@ -81,7 +81,7 @@ class PlainAdmin(ModelAdmin):
 
 @admin.register(Vote)
 class VoteAdmin(ModelAdmin):
-    list_display = ('post', 'get_post_channel', 'supporting_votes', 'opposing_votes', 'get_total_votes',
+    list_display = ('post', 'get_post_channel', 'get_desc', "get_voted_users", 'supporting_votes', 'opposing_votes', 'get_total_votes',
                     'get_vote_ratio')
     list_filter = ('post__channel', 'post__created_at')
     search_fields = ('post__sender__username', 'post__channel__name')
@@ -97,6 +97,14 @@ class VoteAdmin(ModelAdmin):
     @display(description='所属频道')
     def get_post_channel(self, obj):
         return obj.post.channel.name if obj.post and obj.post.channel else '-'
+
+    @display(description='议题')
+    def get_desc(self,obj):
+        return obj.description if obj.description else '-'
+
+    @display(description='已投票用户')
+    def get_voted_users(self, obj):
+        return obj.voted_users.all() if obj.voted_users.all() and obj.voted_users.all().count() > 0 and obj.voted_users else '-'
 
     @display(description='总票数', ordering='supporting_votes')
     def get_total_votes(self, obj):
