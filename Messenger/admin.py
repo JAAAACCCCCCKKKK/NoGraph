@@ -18,7 +18,7 @@ class VoteInline(TabularInline):
 
 @admin.register(Post)
 class PostAdmin(ModelAdmin):
-    list_display = ('id', 'in_channel_id', 'channel', 'sender', 'post_type', 'get_votes_summary', 'created_at')
+    list_display = ('id', 'in_channel_id', 'channel', 'sender', 'post_type', 'get_votes_summary', 'created_at', 'is_reported')
     list_filter = ('post_type', 'channel', 'created_at')
     search_fields = ('sender__username', 'channel__name', 'plain__content')
     autocomplete_fields = ('sender', 'channel')
@@ -54,7 +54,7 @@ class PostAdmin(ModelAdmin):
 
 @admin.register(Plain)
 class PlainAdmin(ModelAdmin):
-    list_display = ('post', 'get_post_channel', 'get_post_sender', 'content_preview')
+    list_display = ('post', 'get_post_channel', 'get_post_sender', 'content_preview', 'get_reported')
     list_filter = ('post__channel', 'post__created_at')
     search_fields = ('content', 'post__sender__username')
     autocomplete_fields = ('post',)
@@ -78,11 +78,15 @@ class PlainAdmin(ModelAdmin):
     def content_preview(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
 
+    @display(description='被举报')
+    def get_reported(self, obj):
+        return obj.post.is_reported
+
 
 @admin.register(Vote)
 class VoteAdmin(ModelAdmin):
     list_display = ('post', 'get_post_channel', 'get_desc', "get_voted_users", 'supporting_votes', 'opposing_votes', 'get_total_votes',
-                    'get_vote_ratio')
+                    'get_vote_ratio', 'get_reported')
     list_filter = ('post__channel', 'post__created_at')
     search_fields = ('post__sender__username', 'post__channel__name')
     autocomplete_fields = ('post',)
@@ -113,3 +117,7 @@ class VoteAdmin(ModelAdmin):
     @display(description='支持率')
     def get_vote_ratio(self, obj):
         return f"{obj.support_rate:.1f}%"
+
+    @display(description='被举报')
+    def get_reported(self, obj):
+        return obj.post.is_reported

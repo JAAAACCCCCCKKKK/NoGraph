@@ -38,6 +38,11 @@ class Post(models.Model):
         default='text',
         verbose_name="帖子类型"
     )
+    is_reported = models.BooleanField(
+        default=False,
+        verbose_name="是否被举报"
+    )
+
 
     class Meta:
         verbose_name = "帖子"

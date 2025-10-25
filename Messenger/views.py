@@ -165,5 +165,35 @@ async def get_messages(request):
         print_exception(e)
         return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)
 
-
-
+@csrf_exempt
+async def report_message(request):
+    if not request.method == "POST":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    data = json.loads(request.body.decode('utf-8'))
+    eml = data.get('email')
+    cha = data.get('channel')
+    post = data.get('post') # in_channel_id
+    token_data = check_jwt(extract_token(request))
+    #validate
+    if not eml or not type(eml)==str or not eml.__contains__("@"):
+        return JsonResponse({'status': 'error', 'message': 'invalid email'}, status=400)
+    if not cha or not type(cha)==str:
+        return JsonResponse({'status': 'error', 'message': 'channel is required'}, status=400)
+    if not post or not type(post)==int:
+        return JsonResponse({'status': 'error', 'message': 'in channel post id is required'}, status=400)
+    try:
+        user = await CustomUser.objects.aget(email=eml)
+        if not user or not user.is_active or not token_data or not token_data['user_id']==eml :
+            return JsonResponse({'status': 'error', 'message': 'please log in'}, status=400)
+        channel = await Channel.objects.aget(name =  cha)
+        if not channel or not (await channel.members.aget(email=eml)):
+            return JsonResponse({'status': 'error', 'message': 'please join or create the channel'}, status=400)
+        message = await Post.objects.aget(channel = channel, in_channel_id = post)
+        if not message:
+            return JsonResponse({'status': 'error', 'message': 'post not found'}, status=404)
+        message.is_reported = True
+        await sync_to_async(message.save)()
+        return JsonResponse({'status': 'success', 'message': 'message reported successfully'}, status=200)
+    except Exception as e:
+        print_exception(e)
+        return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)
