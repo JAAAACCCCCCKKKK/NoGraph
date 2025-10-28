@@ -197,3 +197,35 @@ async def report_message(request):
     except Exception as e:
         print_exception(e)
         return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)
+
+@csrf_exempt
+async def unreport_message(request):
+    if not request.method == "POST":
+        return JsonResponse({'status': 'error', 'message': 'Only POST allowed.'}, status=405)
+    data = json.loads(request.body.decode('utf-8'))
+    eml = data.get('email')
+    cha = data.get('channel')
+    post = data.get('post')
+    token_data = check_jwt(extract_token(request))
+    if not eml or not type(eml)==str or not eml.__contains__("@"):
+        return JsonResponse({'status': 'error', 'message': 'invalid email'}, status=400)
+    if not cha or not type(cha)==str:
+        return JsonResponse({'status': 'error', 'message': 'channel is required'}, status=400)
+    if not post or not type(post)==int:
+        return JsonResponse({'status': 'error', 'message': 'in channel post id is required'}, status=400)
+    try:
+        user = await CustomUser.objects.aget(email=eml)
+        if not user or not user.is_active or not token_data or not token_data['user_id']==eml or not user.is_admin:
+            return JsonResponse({'status': 'error', 'message': 'please log in as admin'}, status=400)
+        channel = await Channel.objects.aget(name =  cha)
+        if not channel:
+            return JsonResponse({'status': 'error', 'message': 'channel not found'}, status=404)
+        message = await Post.objects.aget(channel = channel, in_channel_id = post)
+        if not message:
+            return JsonResponse({'status': 'error', 'message': 'post not found'}, status=404)
+        message.is_reported = False
+        await sync_to_async(message.save)()
+        return JsonResponse({'status': 'success', 'message': 'message unreported successfully'}, status=200)
+    except Exception as e:
+        print_exception(e)
+        return JsonResponse({'status': 'error', 'message': "An error occurred"+str(e)}, status=500)

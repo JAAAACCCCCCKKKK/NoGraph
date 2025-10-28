@@ -31,6 +31,7 @@ class CustomUser(AbstractUser):
         help_text="用户的唯一邮箱地址"
     )
 
+
     class Meta:
         verbose_name = "用户"
         verbose_name_plural = "用户"
@@ -60,10 +61,10 @@ class CustomUser(AbstractUser):
         """检查是否为管理员"""
         return self.is_staff or self.is_superuser
 
-    def get_posts_count(self):
-        """获取用户发帖数量"""
-        return self.posts.count()
-
-    def get_channels_count(self):
-        """获取用户加入的频道数量"""
-        return self.channel_set.count()
+    # def get_posts_count(self):
+    #     """获取用户发帖数量"""
+    #     return self.posts.count()
+    #
+    # def get_channels_count(self):
+    #     """获取用户加入的频道数量"""
+    #     return self.channel_set.count()
