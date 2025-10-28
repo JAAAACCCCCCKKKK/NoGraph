@@ -42,6 +42,7 @@ async def Register(request):
         request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'error', 'message': 'Email already registered with a different username.'}, status=400)
     user.is_active = True
+    user.last_login = timezone.now()
     user.updated_at = timezone.now()
     await sync_to_async(user.save)()
     tok = create_jwt(eml)
