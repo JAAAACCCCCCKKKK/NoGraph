@@ -34,6 +34,7 @@ async def Register(request):
     code_expire  = await sync_to_async(request.session.get)(f"code_expire_{eml}")
 
     if not session_code or session_code != code or int(timezone.now().timestamp()) > code_expire:
+        print(session_code)
         request.session['code_expire'] = -1  # 使验证码失效
         return JsonResponse({'status': 'error', 'message': 'Invalid or expired verification code.'}, status=400)
 

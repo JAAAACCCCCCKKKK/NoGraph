@@ -17,7 +17,7 @@ token = None
 class UserTestCase(TestCase):
     user = None
     def setUp(self):
-        User.objects.create(username='testuser', email='12345@gmail.com')
+        User.objects.create(username='testuser', email='12345@gmail.com', password='testpassword')
         self.user = User.objects.get(username='testuser')
 
     def test_user_creation(self):
@@ -79,6 +79,7 @@ class RegisterTestCase(TestCase):
         match = re.search(r'Your verification code is:\s*(\d{6})', sent_email.body)
         self.assertIsNotNone(match, "Verification code not found in email body")
         test_code = match.group(1)
+        print(test_code)
         self.assertEqual(sent_email.subject, 'Your Verification Code')
         self.assertIn('Your verification code is:', sent_email.body)
         self.assertIn('12345@gmail.com', sent_email.to)
@@ -86,18 +87,18 @@ class RegisterTestCase(TestCase):
         self.assertEqual(response.json(), {'status': 'success', 'message': 'Verification code sent successfully.'} )
 
 
-    # def test_verify(self):
-    #     global token, test_code
-    #     client = Client()
-    #     response = client.post('/auth/verify/', content_type='application/json', data={
-    #         'username': 'testuser',
-    #         'email': '12345@gmail.com',
-    #         'code': test_code
-    #     })
-    #     print(test_code)
-    #     print(response.json())
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertEqual(response.json().get('status'), 'success')
-    #     self.assertIn('token', response.json())
-    #     token = response.json().get('token')
+    def test_verify(self):
+        global token, test_code
+        client = Client()
+        response = client.post('/auth/verify/', content_type='application/json', data={
+            'username': 'testuser',
+            'email': '12345@gmail.com',
+            'code': test_code
+        })
+        print(test_code)
+        print(response.json())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get('status'), 'success')
+        self.assertIn('token', response.json())
+        token = response.json().get('token')
 
