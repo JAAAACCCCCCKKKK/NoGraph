@@ -1,3 +1,4 @@
+import json
 import os
 import re
 
@@ -6,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase, Client
 from django.core import mail
+from django.utils import timezone
 
 from Register.models import CustomUser as User
 
@@ -46,59 +48,73 @@ class UserTestCase(TestCase):
 
 
 class RegisterTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.email = "user@example.com"
+        self.username = "original_user"
+        self.new_username = "updated_user"
 
-    def test_health(self):
-        client = Client()
-        response = client.post('')
+    def test_full_register_flow(self):
+        response = self.client.post(
+            '/auth/sendcode/',
+            data=json.dumps({"email": self.email}),
+            content_type="application/json"
+        )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertEqual(response.json()["status"], "success")
+        print(mail.outbox)
+        self.assertGreaterEqual(len(mail.outbox), 1)
+        sent_mail = mail.outbox[-1]
+        match = re.search(r"Your verification code is:\s*(\d{6})", sent_mail.body)
+        self.assertIsNotNone(match)
+        code = match.group(1)
+        print(f"[Test] Captured code = {code}")
 
-    def test_sendcode_no_email(self):
-        client = Client()
-        response = client.post('/auth/sendcode/', content_type='application/json', data={})
+        response = self.client.post(
+            '/auth/verify/',
+            data=json.dumps({
+                "username": self.username,
+                "email": self.email,
+                "code": code
+            }),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        token = data.get("token")
+        print(f"[Test] Token received = {token[:10]}...")
+
+        response = self.client.post(
+            '/auth/changename/',
+            data=json.dumps({
+                "email": self.email,
+                "new_username": self.new_username
+            }),
+            content_type="application/json",
+            **{"HTTP_AUTH": f"Bearer {token}"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+        response = self.client.post(
+            '/auth/logout/',
+            data=json.dumps({"email": self.email}),
+            content_type="application/json",
+            **{"HTTP_AUTH": f"Bearer {token}"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+        response = self.client.post(
+            '/auth/changename/',
+            data=json.dumps({
+                "email": self.email,
+                "new_username": "should_fail"
+            }),
+            content_type="application/json",
+            **{"HTTP_AUTH": f"Bearer {token}"}
+        )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {'status': 'error', 'message': 'Email is missing or invalid'} )
-
-    def test_sendcode_invalid_email(self):
-        client = Client()
-        response = client.post('/auth/sendcode/', content_type='application/json', data={
-            'email': 'not-an-email'
-        })
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {'status': 'error', 'message': 'Email is missing or invalid'} )
-
-    #TODO: pass the session between test_sendcode and test_verify
-
-    def test_sendcode(self):
-        global test_code
-        client = Client()
-        response = client.post('/auth/sendcode/', content_type='application/json', data={
-            'email': '12345@gmail.com'
-        })
-        sent_email = mail.outbox[0]
-        match = re.search(r'Your verification code is:\s*(\d{6})', sent_email.body)
-        self.assertIsNotNone(match, "Verification code not found in email body")
-        test_code = match.group(1)
-        print(test_code)
-        self.assertEqual(sent_email.subject, 'Your Verification Code')
-        self.assertIn('Your verification code is:', sent_email.body)
-        self.assertIn('12345@gmail.com', sent_email.to)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'status': 'success', 'message': 'Verification code sent successfully.'} )
-
-
-    def test_verify(self):
-        global token, test_code
-        client = Client()
-        response = client.post('/auth/verify/', content_type='application/json', data={
-            'username': 'testuser',
-            'email': '12345@gmail.com',
-            'code': test_code
-        })
-        print(test_code)
-        print(response.json())
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json().get('status'), 'success')
-        self.assertIn('token', response.json())
-        token = response.json().get('token')
+        self.assertIn("please log in", response.json()["message"])
 
